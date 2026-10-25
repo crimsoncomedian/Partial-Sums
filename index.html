@@ -88,13 +88,30 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .pin{text-align:right}
 .rowin{animation:pop .45s ease-out}
 @media(max-width:560px){.row.act{flex-wrap:wrap;justify-content:center}.strip{flex-basis:100%;justify-content:center;margin:6px 0 4px}.eqrow{font-size:28px}.eqrow input{width:120px;font-size:28px}}
+
+.app{max-width:900px}
+.board{display:flex;flex-wrap:wrap;gap:18px 28px;justify-content:center;align-items:flex-start}
+.bench{min-width:270px;max-width:340px;min-height:150px;border:2px dashed #cdd6e2;border-radius:16px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.bench.on{border-style:solid;border-color:#c8d3e2;background:#fafbfe}
+.bench .idle{font-size:44px;opacity:.35}
+.bench .eqrow{margin:0}
+.clk{cursor:pointer}
+.clk:hover{background:#f1f4fa}
+.c.dn{opacity:.3}
+.c.ck{font-size:26px}
+.fh{display:flex;align-items:center}
+.fh .c{height:34px;font-size:26px}
+.stk .row .eq{display:none}
+.sg{flex:none}
+.pmini{font-size:15px;font-weight:700;color:#5e6d81}
+.rowin{animation:pop .45s ease-out}
+@media(max-width:560px){.bench{min-width:0;width:100%}}
 </style>
 </head>
 <body><main class="app">
 <h1>Partial Sums</h1>
 <section class="card">
- <div class="stack" id="stack"></div>
- <div id="eqs"></div>
+ <div class="board"><div class="stack stk" id="stack"></div><div class="bench" id="bench"></div></div>
  <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
  <div class="msg" id="msg" role="status" aria-live="polite"></div>
 </section>
@@ -105,93 +122,102 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 const $=id=>document.getElementById(id);
 const PL=['O','T','H'],NAMES=['1s','10s','100s'];
 const COL={H:'var(--h)',T:'var(--t)',O:'var(--o)'};
-let A=347,B=286,steps=[],idx=0,maxd=3,total=633,fresh=-1;
+let A=347,B=286,maxd=3,total=633,partials=[],cd=0,active=null,fresh=-1,need=[];
 const dig=(x,k)=>Math.floor(x/10**k)%10;
+const place=k=>PL[k]||'O';
 function setup(a,b){
- A=a;B=b;total=a+b;maxd=Math.max(String(a).length,String(b).length);steps=[];
- const parts=[];
- for(let c=0;c<maxd;c++){const da=dig(a,c),db=dig(b,c);if(da===0&&db===0)continue;
-  steps.push({k:'p',col:c,da,db,sum:da+db,want:da+db});parts.push({col:c,val:(da+db)*10**c});}
- let run=parts[0].val;
- for(let j=1;j<parts.length;j++){steps.push({k:'c',left:run,right:parts[j].val,rc:parts[j].col,want:run+parts[j].val});run+=parts[j].val;}
- idx=0;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
+ A=a;B=b;total=a+b;maxd=Math.max(String(a).length,String(b).length);
+ need=[];for(let c=0;c<maxd;c++)if(dig(a,c)||dig(b,c))need.push(c);
+ partials=[];cd=0;active=null;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
+}
+function combos(){
+ const out=[];if(partials.length<need.length)return out;
+ let run=partials[0].val;
+ for(let j=1;j<partials.length;j++){out.push({left:run,right:partials[j].val,lc:j===1?partials[0].col:null,rc:partials[j].col,want:run+partials[j].val});run+=partials[j].val;}
+ return out;
 }
 const blocks=(n,col)=>{const cls=col===2?'fl':col===1?'rd':'cu';return `<div class="bl">${`<span class="${cls}"></span>`.repeat(n)}</div>`;};
 function render(){
- const n=maxd+1,cur=idx<steps.length?steps[idx]:null,finished=cur===null;
- const nP=steps.filter(s=>s.k==='p').length;
+ const n=maxd+1,inPartial=partials.length<need.length,cs=combos(),finished=!inPartial&&cd>=cs.length;
  const colsL=[];for(let k=n-1;k>=0;k--)colsL.push(k);
- const place=k=>PL[k]||'O';
+ const isDone=k=>partials.some(p=>p.col===k);
+ const clickable=k=>inPartial&&need.includes(k)&&!isDone(k);
  let h='';
- h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>`<div class="c ${k<3?place(k):'O'}" style="${k<maxd?'':'visibility:hidden'}">${k<3?NAMES[k]:''}</div>`).join('')+`<div class="eq" style="visibility:hidden"></div></div>`;
- const actCol=cur&&cur.k==='p'?cur.col:-1;
- const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${k===actCol?' act':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden"></div></div>`;
+ // finger hint row
+ const showFinger=inPartial&&partials.length===0&&active===null;
+ h+=`<div class="fh"><div class="sg"></div>`+colsL.map(k=>`<div class="c">${showFinger&&k===0?'<span class="hand" aria-hidden="true">\uD83D\uDC47</span>':''}</div>`).join('')+`</div>`;
+ // header
+ h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>{
+  const vis=k<maxd;const dn=isDone(k);
+  return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}" data-col="${k}" style="${vis?'':'visibility:hidden'}">${dn?'\u2713':(k<3?NAMES[k]:'')}</div>`;}).join('')+`</div>`;
+ const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}${isDone(k)?' dn':''}" data-col="${k}">${ch}</div>`;}).join('')+`</div></div>`;
  h+=numRow(A,'',false)+numRow(B,'+',true);
- // done partial rows
- const donePartials=steps.filter((s,i)=>s.k==='p'&&i<idx);
- donePartials.forEach((s,i)=>{
-  const str=String(s.sum);
+ // partial rows (in the order they were done)
+ partials.forEach((p,i)=>{
+  const str=String(p.val);
   h+=`<div class="row${fresh===i?' rowin':''}"><div class="sg"></div><div class="cells">`+colsL.map(k=>{
-   const rel=k-s.col;let ch='',faint=false;
-   if(rel>=0&&rel<str.length)ch=str[str.length-1-rel];
-   else if(k<s.col){ch='0';faint=true;}
-   return `<div class="c ${place(s.col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden"></div></div>`;
+   const ch=k<str.length?str[str.length-1-k]:'';const faint=ch!==''&&k<p.col;
+   return `<div class="c ${place(p.col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div></div>`;
  });
- // active partial row
- if(cur&&cur.k==='p'){
-  const w=String(cur.sum).length>=2?2:2; // allow two digits
-  const cells=colsL.map(k=>`<div class="c ${place(cur.col)}${k<cur.col?' z':''}" style="${k===cur.col||k===cur.col+1?'':''}">${k<cur.col?'0':''}</div>`);
-  // input overlays the two cells at col+1 and col (right-aligned)
-  const left=colsL.indexOf(cur.col+1<n?cur.col+1:cur.col),span=cur.col+1<n?2:1;
-  const rowCells=colsL.map((k,i)=>{
-   if(k===cur.col+1&&cur.col+1<n)return `<input class="pin" id="inNum" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Partial sum" style="width:calc(var(--cw)*2);margin:0 0 0 0">`;
-   if(k===cur.col&&cur.col+1<n)return '';
-   if(k===cur.col)return `<input class="pin" id="inNum" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Partial sum" style="width:var(--cw)">`;
-   return `<div class="c ${place(cur.col)}${k<cur.col?' z':''}">${k<cur.col?'0':''}</div>`;}).join('');
-  const g=(d)=>d===0?'':`<div class="grp ${place(cur.col)}"><div class="num">${d}</div>${blocks(d,cur.col)}</div>`;
-  const gs=[g(cur.da),g(cur.db)].filter(Boolean).join('<div class="pl">+</div>');
-  h+=`<div class="row rowin act"><div class="sg"></div><div class="cells">${rowCells}</div><div class="strip">${gs}</div></div>`;
- }
  $('stack').innerHTML=h;
- // equations (combine step by step)
- let e='';
- const comb=steps.filter(s=>s.k==='c');
- if(idx>=nP&&comb.length){
-  comb.forEach((s,j)=>{
-   const si=steps.indexOf(s);
-   const lcol=j===0?null:null;
-   const lcls=j===0?'color:'+COL[place(steps.filter(x=>x.k==='p')[0].col)]:'';
-   const leftStyle=j===0?`color:${COL[place(steps.filter(x=>x.k==='p')[0].col)]}`:'';
-   const rightStyle=`color:${COL[place(s.rc)]}`;
-   if(si<idx)e+=`<div class="eqrow"><span class="tm" style="${leftStyle}">${s.left}</span><span class="op">+</span><span class="tm" style="${rightStyle}">${s.right}</span><span class="op">=</span><span class="tm ans">${s.want}</span></div>`;
-   else if(si===idx)e+=`<div class="eqrow rowin"><span class="tm" style="${leftStyle}">${s.left}</span><span class="op">+</span><span class="tm" style="${rightStyle}">${s.right}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div>`;
+ // workbench
+ let b='';
+ if(finished){b=`<div class="eqrow"><span class="tm ans">${total}</span></div>`;}
+ else if(inPartial){
+  if(active===null)b=`<div class="idle" aria-hidden="true">\uD83D\uDC48</div>`;
+  else{
+   const va=dig(A,active)*10**active,vb=dig(B,active)*10**active,da=dig(A,active),db=dig(B,active);
+   const st=`color:${COL[place(active)]}`;
+   const g=d=>d===0?'':`<div class="grp ${place(active)}"><div class="num">${d}</div>${blocks(d,active)}</div>`;
+   const gs=[g(da),g(db)].filter(Boolean).join('<div class="pl">+</div>');
+   b=`<div class="eqrow rowin"><span class="tm" style="${st}">${va}</span><span class="op">+</span><span class="tm" style="${st}">${vb}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div><div class="strip" style="margin:0;min-width:0">${gs}</div>`;
+  }
+ }else{
+  cs.forEach((s,j)=>{
+   const lst=s.lc!==null?`color:${COL[place(s.lc)]}`:'';const rst=`color:${COL[place(s.rc)]}`;
+   if(j<cd)b+=`<div class="eqrow"><span class="tm" style="${lst}">${s.left}</span><span class="op">+</span><span class="tm" style="${rst}">${s.right}</span><span class="op">=</span><span class="tm ans">${s.want}</span></div>`;
+   else if(j===cd)b+=`<div class="eqrow rowin"><span class="tm" style="${lst}">${s.left}</span><span class="op">+</span><span class="tm" style="${rst}">${s.right}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div>`;
   });
  }
- $('eqs').innerHTML=e;
+ $('bench').innerHTML=b;$('bench').classList.toggle('on',!!b&&!(inPartial&&active===null)&&!finished||finished);
  const msg=$('msg');
  if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;}
  else if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
- $('ctl').hidden=finished;$('undo').disabled=idx===0;
+ $('ctl').hidden=finished;$('chk').hidden=!$('inNum');$('undo').disabled=partials.length===0&&active===null&&cd===0;
+ if(!finished||true)document.querySelectorAll('[data-col].clk').forEach(el=>el.onclick=()=>{active=+el.dataset.col;setMsg('');render();});
  const inn=$('inNum');
- if(inn){inn.oninput=()=>{inn.value=inn.value.replace(/\D/g,'');if(inn.value.length>=String(cur.want).length)check();};inn.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check();}};inn.focus();}
+ const want=inPartial?(active!==null?(dig(A,active)+dig(B,active))*10**active:0):(cs[cd]?cs[cd].want:0);
+ if(inn){inn.oninput=()=>{inn.value=inn.value.replace(/\D/g,'');if(inn.value.length>=String(want).length)check();};inn.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check();}};inn.focus();}
  fresh=-1;
 }
 function setMsg(t){$('msg').className='msg';$('msg').textContent=t;}
 function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
 function check(){
- const cur=steps[idx];if(!cur)return;const el=$('inNum');if(!el)return;const v=el.value.replace(/\D/g,'');if(v==='')return;
- if(+v===cur.want){if(cur.k==='p')fresh=steps.slice(0,idx).filter(s=>s.k==='p').length;idx++;setMsg('');render();return;}
- el.value='';shake(el);
- setMsg(cur.k==='p'?`Not quite. Count the blocks: ${cur.da} + ${cur.db} = ?`:`Not quite. ${cur.left} + ${cur.right} = ?`);
+ const el=$('inNum');if(!el)return;const v=el.value.replace(/\D/g,'');if(v==='')return;
+ const inPartial=partials.length<need.length;
+ if(inPartial&&active!==null){
+  const da=dig(A,active),db=dig(B,active),want=(da+db)*10**active;
+  if(+v===want){partials.push({col:active,val:want});fresh=partials.length-1;active=null;setMsg('');render();return;}
+  el.value='';shake(el);
+  if(active>0&&+v===da+db)setMsg('Remember the place value: how much is each worth?');
+  else setMsg(`Not quite. ${da*10**active} + ${db*10**active} = ?`);
+  return;}
+ const cs=combos(),s=cs[cd];if(!s)return;
+ if(+v===s.want){cd++;setMsg('');render();return;}
+ el.value='';shake(el);setMsg(`Not quite. ${s.left} + ${s.right} = ?`);
 }
 $('chk').onclick=check;
-$('undo').onclick=()=>{if(idx>0){idx--;setMsg('');render();}};
-function carries(a,b){for(let c=0;c<3;c++)if(dig(a,c)+dig(b,c)>=10)return true;return false;}
+$('undo').onclick=()=>{
+ if(partials.length<need.length&&active!==null)active=null;
+ else if(cd>0)cd--;
+ else if(partials.length>0)partials.pop();
+ setMsg('');render();};
+function carries(a,b){let n=0;for(let c=0;c<3;c++)if(dig(a,c)+dig(b,c)>=10)n++;return n;}
 function nPartials(a,b){let c=0;const m=Math.max(String(a).length,String(b).length);for(let i=0;i<m;i++)if(dig(a,i)||dig(b,i))c++;return c;}
 function newProblem(){
  const r=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
- let a,b;const want=Math.random()<.75;
- do{const la=Math.random()<.5?2:3,lb=Math.random()<.5?2:3;a=la===2?r(10,99):r(100,999);b=lb===2?r(10,99):r(100,999);}while(a===b||nPartials(a,b)<2||(want&&!carries(a,b)));
+ let a,b;const want=Math.random()<.9;
+ do{const la=Math.random()<.4?2:3,lb=Math.random()<.4?2:3;a=la===2?r(10,99):r(100,999);b=lb===2?r(10,99):r(100,999);}while(a===b||nPartials(a,b)<2||(want&&carries(a,b)<1));
  setup(Math.max(a,b),Math.min(a,b));
 }
 $('next').onclick=newProblem;
