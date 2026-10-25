@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Partial Sums Addition</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18253a;background:#f5f7fb}*{box-sizing:border-box}body{margin:0;padding:20px}.app{max-width:640px;margin:auto}
+h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5e6d81;font-size:14px;text-align:center;margin:0 auto 6px;max-width:460px}
+.card{background:#fff;border:1px solid #d9e1eb;border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 2px 8px #152b4310}
+.tray{display:flex;gap:14px;justify-content:center;align-items:center;min-height:84px;border:2px dashed #afbed1;border-radius:14px;padding:10px;color:#8491a2;font-size:14px}
+.tray.over,.cells.over{border-color:#5144c6;background:#f0eefc}
+.plus{font-size:40px;font-weight:800;color:#5e6d81;line-height:1}
+.tray.arrow{font-size:34px;color:#afbed1}
+.tile{font-size:34px;font-weight:800;padding:10px 20px;border:2px solid #5144c6;background:#fff;color:#18253a;border-radius:12px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-variant-numeric:tabular-nums;box-shadow:0 2px 6px #5144c622}
+.tile:focus-visible,.slot:focus-visible{outline:3px solid #7268e4;outline-offset:2px}
+.ghost{position:fixed;z-index:50;pointer-events:none;opacity:.9;margin:0}
+.frame{display:flex;flex-direction:column;align-items:center;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center}
+.sg{width:40px;text-align:center;font-size:38px;font-weight:700;color:#5e6d81}
+.cells{display:flex;border:2px solid transparent;border-radius:12px}
+.cells.empty{border-color:#afbed1;border-style:dashed;min-height:68px}
+.slot[role=button]{cursor:grab;touch-action:none}
+.c{width:64px;height:68px;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;border-radius:10px}
+.c.act{background:#eeeafe}
+.row.cr .c{height:44px}
+.row.top,.row.bot{margin:5px 0}
+.row.bot .cells{border-bottom:4px solid #18253a;border-radius:0 0 4px 4px;padding-bottom:2px}
+.row.bot .cells.empty{border-radius:12px;padding:0}
+.row.ar{margin-top:8px}
+.abox,.afix{width:56px;height:62px;font-size:38px;font-weight:800;text-align:center;border-radius:10px;font-family:inherit;padding:0}
+.abox{border:3px solid #5144c6;background:#fff;color:#18253a}
+.abox:focus{outline:3px solid #b6aef5;outline-offset:1px}
+.afix{display:flex;align-items:center;justify-content:center;border:3px solid #2e9e62;background:#f1faf5}
+.afix.wait{border:2px dashed #cdd6e2;background:transparent}
+.cbox,.cfix{width:38px;height:38px;font-size:22px;font-weight:800;text-align:center;border-radius:8px;font-family:inherit;padding:0}
+.cbox{border:2px solid #e08a1e;background:#fff8ee;color:#18253a}
+.cbox:focus{outline:3px solid #f6cf9c;outline-offset:1px}
+.cfix{display:flex;align-items:center;justify-content:center;border:2px solid #e08a1e;background:#fff8ee;color:#a35d0b}
+.msg{text-align:center;min-height:26px;font-weight:700;margin-top:10px;color:#bb3d3d}.msg.good{color:#18845a;font-size:18px}
+.help{text-align:center;color:#5e6d81;font-size:14px;margin-top:8px}
+.next{display:block;margin:6px auto 0;border:0;border-radius:10px;background:#5144c6;color:#fff;font-weight:700;font-size:16px;padding:12px 20px;cursor:pointer}
+.title2{text-align:center;font-weight:700;margin:0 0 10px}
+@media(max-width:400px){.c{width:54px}.sg{width:30px}.tile{font-size:28px;padding:8px 14px}.abox,.afix{width:48px}}
+
+:root{--h:#2373cf;--t:#16825a;--o:#d9801a;--cw:64px}
+.stack{display:flex;flex-direction:column;align-items:center;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.hd{display:flex;align-items:center}
+.hd .c{height:26px;font-size:14px;font-weight:800;border-radius:0}
+.row{display:flex;align-items:center;margin:3px 0}
+.row .eq,.hd .eq{margin-left:14px;font-size:20px;font-weight:700;color:#5e6d81;white-space:nowrap;min-width:150px}
+.row .eqL{margin-right:14px;min-width:150px;visibility:hidden}
+.c{width:var(--cw);height:64px;display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:800;border-radius:10px;transition:background .25s}
+.c.H{color:var(--h)}.c.T{color:var(--t)}.c.O{color:var(--o)}
+.c.act.H{background:#e4effb}.c.act.T{background:#e2f3ec}.c.act.O{background:#fcefdc}
+.c.z{opacity:.3}
+.lineb{border-bottom:4px solid #18253a;border-radius:0 0 4px 4px;padding-bottom:3px}
+.cells{display:flex}
+.sg{width:38px;text-align:center;font-size:38px;font-weight:700;color:#5e6d81}
+.pin{height:60px;font-size:38px;font-weight:800;text-align:right;padding:0 12px;border:3px solid #5144c6;border-radius:10px;background:#fff;font-family:inherit;font-variant-numeric:tabular-nums}
+.pin:focus{outline:3px solid #b6aef5;outline-offset:1px}
+.rowin{animation:pop .45s ease-out}
+@keyframes pop{0%{opacity:0;transform:translateY(-14px)}100%{opacity:1;transform:none}}
+.shake{animation:wig .4s}
+@keyframes wig{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.chk{border:1px solid #5144c6;border-radius:9px;background:#5144c6;color:#fff;padding:10px 16px;font-size:16px;font-weight:700;cursor:pointer}
+.chk.alt{background:#fff;color:#5144c6}
+.chk:disabled{opacity:.4;cursor:not-allowed}
+[hidden]{display:none!important}
+.help b{color:#18253a}
+@media(max-width:560px){:root{--cw:52px}.row .eq,.hd .eq{display:none}.c{font-size:36px}.sg{width:28px}.pin{font-size:30px}}
+</style>
+</head>
+<body><main class="app">
+<h1>Partial Sums</h1>
+<p class="sub">Add each place on its own. Then add the pieces together.</p>
+<section class="card">
+ <div class="stack" id="stack"></div>
+ <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
+ <div class="msg" id="msg" role="status" aria-live="polite"></div>
+ <div class="help" id="help"></div>
+</section>
+<button class="next" id="next" type="button">New problem &#8635;</button>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const PL=['O','T','H'],NAMES=['1s','10s','100s'];
+let A=347,B=286,steps=[],idx=0,maxd=3,total=633,fresh=-1;
+const dig=(x,k)=>Math.floor(x/10**k)%10;
+function setup(a,b){
+ A=a;B=b;total=a+b;maxd=Math.max(String(a).length,String(b).length);steps=[];
+ for(let c=maxd-1;c>=0;c--){const da=dig(a,c),db=dig(b,c);if(da===0&&db===0)continue;steps.push({k:'p',col:c,va:da*10**c,vb:db*10**c,want:(da+db)*10**c});}
+ steps.push({k:'f',want:total,parts:steps.map(s=>s.want)});
+ idx=0;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
+}
+function render(){
+ const n=maxd+1,cur=idx<steps.length?steps[idx]:null,finished=cur===null;
+ const colsL=[];for(let k=n-1;k>=0;k--)colsL.push(k);
+ const place=k=>PL[k]||'O';
+ const cellsFor=(str,tint)=>colsL.map(k=>{const pos=k;const ch=str.length>pos?str[str.length-1-pos]:'';return `<div class="c ${tint||place(k)}${tint==='x'?'':''}">${ch}</div>`;}).join('');
+ let h='';
+ // header
+ h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>`<div class="c ${k<3?place(k):'O'}" style="${k<maxd?'':'visibility:hidden'}">${k<3?NAMES[k]:''}</div>`).join('')+`<div class="eq" style="visibility:hidden">x</div></div>`;
+ // numbers
+ const actCol=cur&&cur.k==='p'?cur.col:-1;
+ const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${k===actCol?' act':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;
+ h+=numRow(A,'',false)+numRow(B,'+',true);
+ // partial rows
+ const fmtRow=(val,col,isNew)=>{
+  const s=String(val);
+  return `<div class="row${isNew?' rowin':''}"><div class="sg"></div><div class="cells">`+colsL.map(k=>{
+   const ch=k<s.length?s[s.length-1-k]:'';
+   const faint=ch!==''&&k<col;
+   return `<div class="c ${place(col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;};
+ const inputRow=(cur,signPlus)=>{
+  const w=cur.k==='p'?n:n;const eq=cur.k==='p'?(cur.vb===0?`${cur.va}`:cur.va===0?`${cur.vb}`:`${cur.va} + ${cur.vb}`):cur.parts.join(' + ');
+  return `<div class="row rowin"><div class="sg">${signPlus?'+':''}</div><div class="cells"><input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="${cur.k==='p'?'Partial sum':'Total'}" style="width:calc(var(--cw)*${n})"></div><div class="eq">${cur.k==='p'?eq:''}</div></div>`;};
+ const donePartials=steps.slice(0,Math.min(idx,steps.length-1));
+ donePartials.forEach((s,i)=>{h+=fmtRow(s.want,s.col,fresh===i);});
+ if(cur&&cur.k==='p')h+=inputRow(cur,false);
+ // final
+ const allPartial=idx>=steps.length-1;
+ if(allPartial){
+  const f=steps[steps.length-1];
+  // plus sign on the last partial row: handled visually by a separate row of the line
+  h+=`<div class="row"><div class="sg">+</div><div class="cells lineb" style="height:0;padding:0;min-width:calc(var(--cw)*${n})"></div><div class="eq" style="visibility:hidden">x</div></div>`;
+  if(cur&&cur.k==='f')h+=`<div class="row rowin"><div class="sg"></div><div class="cells"><input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Total" style="width:calc(var(--cw)*${n})"></div><div class="eq">${f.parts.join(' + ')}</div></div>`;
+  else if(finished)h+=`<div class="row rowin"><div class="sg"></div><div class="cells">`+colsL.map(k=>{const s=String(total);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c" style="color:#18845a">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;
+ }
+ $('stack').innerHTML=h;
+ const msg=$('msg');
+ if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;$('help').textContent='';}
+ else{if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
+  $('help').innerHTML=cur.k==='p'?`Add the <b>${NAMES[cur.col]}</b> place: <b>${cur.vb===0?cur.va:cur.va===0?cur.vb:cur.va+' + '+cur.vb}</b>`:`Add the partial sums: <b>${cur.parts.join(' + ')}</b>`;}
+ $('ctl').hidden=finished;$('undo').disabled=idx===0;
+ const inn=$('inNum');
+ if(inn){inn.oninput=()=>{inn.value=inn.value.replace(/\D/g,'');if(inn.value.length>=String(cur.want).length)check();};inn.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check();}};inn.focus();}
+ fresh=-1;
+}
+function setMsg(t){$('msg').className='msg';$('msg').textContent=t;}
+function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
+function check(){
+ const cur=steps[idx];if(!cur)return;const el=$('inNum');if(!el)return;const v=el.value.replace(/\D/g,'');if(v==='')return;
+ if(+v===cur.want){if(cur.k==='p')fresh=idx;idx++;setMsg('');render();return;}
+ el.value='';shake(el);
+ if(cur.k==='p'&&+v===cur.want/10**cur.col&&cur.col>0){setMsg('Write the full value, with the zeros.');return;}
+ setMsg(cur.k==='p'?`Not quite. ${cur.vb===0?cur.va:cur.va===0?cur.vb:cur.va+' + '+cur.vb} = ?`:`Not quite. ${cur.parts.join(' + ')} = ?`);
+}
+$('chk').onclick=check;
+$('undo').onclick=()=>{if(idx>0){idx--;setMsg('');render();}};
+function carries(a,b){for(let c=0;c<3;c++)if(dig(a,c)+dig(b,c)>=10)return true;return false;}
+function newProblem(){
+ const r=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
+ let a,b;const want=Math.random()<.75;
+ do{const la=Math.random()<.5?2:3,lb=Math.random()<.5?2:3;a=la===2?r(10,99):r(100,999);b=lb===2?r(10,99):r(100,999);}while(a===b||(want&&!carries(a,b)));
+ setup(Math.max(a,b),Math.min(a,b));
+}
+$('next').onclick=newProblem;
+newProblem();
+})();
+</script></body></html>
