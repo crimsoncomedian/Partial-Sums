@@ -119,6 +119,11 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .fh{display:flex;align-items:center}
 .fh .c{height:44px;font-size:26px}
 .pm{min-height:38px;margin-top:6px}
+.rev{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px}
+.rev .chk{padding:8px 16px;font-size:18px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid #5144c6;background:#fff;padding:0;margin:0 4px;cursor:pointer}
+.dot.on{background:#5144c6}
+.row.rv{background:#f3f1ff;border-radius:12px}
 .ptxt{white-space:nowrap;font-size:20px;font-weight:800;color:#5e6d81}
 .c.hov.H,.c.act.H{background:#d3e6fa;box-shadow:0 -4px 0 #d3e6fa,0 4px 0 #d3e6fa}
 .c.hov.T,.c.act.T{background:#cdebdc;box-shadow:0 -4px 0 #cdebdc,0 4px 0 #cdebdc}
@@ -132,7 +137,7 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .row.pr{flex-wrap:nowrap}
 .cc{color:#18253a}.cc.fin{color:#18845a}
 @media(max-width:560px){
- .lw.ph{display:none}
+ .lw.ph,.lw:empty{display:none}
  .row.pr{flex-wrap:wrap;justify-content:center}
  .row.pr .lw{flex-basis:100%;text-align:center;margin:6px 0 0;width:auto;font-size:20px}
  .row.pr .sg{display:none}
@@ -144,6 +149,7 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 <h1>Partial Sums</h1>
 <section class="card">
  <div class="stack stk" id="stack"></div>
+ <div class="rev" id="rev" hidden><button class="chk alt" id="prev" type="button" aria-label="Previous step">&#9664;</button><span id="dots"></span><button class="chk alt" id="next2" type="button" aria-label="Next step">&#9654;</button></div>
  <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
  <div class="msg" id="msg" role="status" aria-live="polite"></div>
 </section>
@@ -154,13 +160,13 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 const $=id=>document.getElementById(id);
 const PL=['O','T','H'],NAMES=['1s','10s','100s'];
 const COL={H:'var(--h)',T:'var(--t)',O:'var(--o)'};
-let A=347,B=286,maxd=3,total=633,partials=[],cd=0,active=null,fresh=-1,need=[];
+let A=347,B=286,maxd=3,total=633,partials=[],cd=0,active=null,fresh=-1,need=[],view=0;
 const dig=(x,k)=>Math.floor(x/10**k)%10;
 const place=k=>PL[k]||'O';
 function setup(a,b){
  A=a;B=b;total=a+b;maxd=Math.max(String(a).length,String(b).length);
  need=[];for(let c=0;c<maxd;c++)if(dig(a,c)||dig(b,c))need.push(c);
- partials=[];cd=0;active=null;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
+ partials=[];cd=0;active=null;fresh=-1;view=0;$('msg').textContent='';$('msg').className='msg';render();
 }
 function combos(){
  if(partials.length<need.length)return [];
@@ -189,7 +195,8 @@ function render(){
  // partial rows, in the order they were done
  partials.forEach((p,i)=>{
   const va=dig(A,p.col)*10**p.col,vb=dig(B,p.col)*10**p.col;
-  h+=`<div class="row pr${fresh===i?' rowin':''}"><div class="lw">${trm(va,p.col)} + ${trm(vb,p.col)} =</div><div class="sg"></div><div class="cells">${valCells(p.val,place(p.col),p.col)}</div></div>`;
+  const showEq=finished&&view===i;
+  h+=`<div class="row pr${fresh===i?' rowin':''}${showEq?' rv':''}"><div class="lw">${showEq?`${trm(va,p.col)} + ${trm(vb,p.col)} =`:''}</div><div class="sg"></div><div class="cells">${valCells(p.val,place(p.col),p.col)}</div></div>`;
  });
  // open partial row
  if(inPartial&&active!==null){
@@ -201,7 +208,7 @@ function render(){
   h+=`<div class="dv2"></div>`;
   const s=cs[0];
   const eq=s.terms.map(t=>trm(t.v,t.c)).join(' <span class="op">+</span> ')+' =';
-  if(cd>=1)h+=`<div class="row pr"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc fin',null)}</div></div>`;
+  if(cd>=1)h+=`<div class="row pr${view===partials.length?' rv':''}"><div class="lw">${view===partials.length?eq:''}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc fin',null)}</div></div>`;
   else h+=`<div class="row pr rowin"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${input}</div></div>`;
  }
  $('stack').innerHTML=h;
@@ -211,7 +218,9 @@ function render(){
  const msg=$('msg');
  if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;}
  else if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
- $('ctl').hidden=finished;$('chk').hidden=!$('inNum');$('undo').disabled=partials.length===0&&active===null&&cd===0;
+ $('ctl').hidden=finished;$('rev').hidden=!finished;
+ if(finished){const last=partials.length;$('dots').innerHTML=Array.from({length:last+1},(_,i)=>`<button type="button" class="dot${i===view?' on':''}" data-i="${i}" aria-label="Step ${i+1}"></button>`).join('');$('prev').disabled=view<=0;$('next2').disabled=view>=last;document.querySelectorAll('#dots .dot').forEach(d=>d.onclick=()=>{view=+d.dataset.i;render();});}
+$('chk').hidden=!$('inNum');$('undo').disabled=partials.length===0&&active===null&&cd===0;
  document.querySelectorAll('[data-col].clk').forEach(el=>el.onclick=()=>{active=+el.dataset.col;setMsg('');render();});
  const inn=$('inNum');
  const want=inPartial?(active!==null?(dig(A,active)+dig(B,active))*10**active:0):(cs[cd]?cs[cd].want:0);
@@ -231,10 +240,12 @@ function check(){
   else setMsg(`Not quite. ${da*10**active} + ${db*10**active} = ?`);
   return;}
  const cs=combos(),s=cs[cd];if(!s)return;
- if(+v===s.want){cd++;setMsg('');render();return;}
+ if(+v===s.want){cd++;view=partials.length;setMsg('');render();return;}
  el.value='';shake(el);setMsg(`Not quite. ${s.terms.map(t=>t.v).join(' + ')} = ?`);
 }
 $('chk').onclick=check;
+$('prev').onclick=()=>{view=Math.max(0,view-1);render();};
+$('next2').onclick=()=>{view=Math.min(partials.length,view+1);render();};
 $('undo').onclick=()=>{
  if(partials.length<need.length&&active!==null)active=null;
  else if(cd>0)cd--;
