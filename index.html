@@ -108,7 +108,7 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 @media(max-width:560px){.bench{min-width:0;width:100%}}
 
 .app{max-width:760px}
-.lw{width:150px;margin-right:8px;text-align:right;font-size:22px;font-weight:700;white-space:nowrap;color:#5e6d81}
+.lw{width:230px;margin-right:8px;text-align:right;font-size:22px;font-weight:700;white-space:nowrap;color:#5e6d81}
 .lw.ph{visibility:hidden}
 .lw .t{display:inline-block}
 .dv2{width:calc(var(--cw)*4 + 38px);border-top:2px solid #d5dce8;margin:8px 0 4px;align-self:center}
@@ -163,10 +163,8 @@ function setup(a,b){
  partials=[];cd=0;active=null;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
 }
 function combos(){
- const out=[];if(partials.length<need.length)return out;
- let run=partials[0].val;
- for(let j=1;j<partials.length;j++){out.push({left:run,right:partials[j].val,lc:j===1?partials[0].col:null,rc:partials[j].col,want:run+partials[j].val});run+=partials[j].val;}
- return out;
+ if(partials.length<need.length)return [];
+ return [{terms:partials.map(p=>({v:p.val,c:p.col})),want:total}];
 }
 function render(){
  const n=maxd+1,inPartial=partials.length<need.length,cs=combos(),finished=!inPartial&&cd>=cs.length;
@@ -201,12 +199,10 @@ function render(){
  // combining the partial sums, two at a time
  if(!inPartial){
   h+=`<div class="dv2"></div>`;
-  cs.forEach((s,j)=>{
-   const eq=`${trm(s.left,s.lc)} + ${trm(s.right,s.rc)} =`;
-   const last=j===cs.length-1;
-   if(j<cd)h+=`<div class="row pr"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc'+(last?' fin':''),null)}</div></div>`;
-   else if(j===cd)h+=`<div class="row pr rowin"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${input}</div></div>`;
-  });
+  const s=cs[0];
+  const eq=s.terms.map(t=>trm(t.v,t.c)).join(' <span class="op">+</span> ')+' =';
+  if(cd>=1)h+=`<div class="row pr"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc fin',null)}</div></div>`;
+  else h+=`<div class="row pr rowin"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${input}</div></div>`;
  }
  $('stack').innerHTML=h;
  const clearHov=()=>document.querySelectorAll('#stack .hov').forEach(x=>x.classList.remove('hov'));
@@ -236,7 +232,7 @@ function check(){
   return;}
  const cs=combos(),s=cs[cd];if(!s)return;
  if(+v===s.want){cd++;setMsg('');render();return;}
- el.value='';shake(el);setMsg(`Not quite. ${s.left} + ${s.right} = ?`);
+ el.value='';shake(el);setMsg(`Not quite. ${s.terms.map(t=>t.v).join(' + ')} = ?`);
 }
 $('chk').onclick=check;
 $('undo').onclick=()=>{
