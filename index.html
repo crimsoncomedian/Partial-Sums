@@ -100,7 +100,7 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .c.dn{opacity:.3}
 .c.ck{font-size:26px}
 .fh{display:flex;align-items:center}
-.fh .c{height:34px;font-size:26px}
+.fh .c{height:44px;font-size:26px}
 .stk .row .eq{display:none}
 .sg{flex:none}
 .pmini{font-size:15px;font-weight:700;color:#5e6d81}
@@ -116,6 +116,9 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .hd .c .pill{display:inline-block;padding:3px 10px;border:2px solid transparent;border-radius:999px;font-size:15px;line-height:1}
 .hd .c.clk .pill{border-color:currentColor;background:#fff;box-shadow:0 2px 0 currentColor}
 .hd .c.clk:hover .pill{background:#f1f4fa}
+.fh{display:flex;align-items:center}
+.fh .c{height:44px;font-size:26px}
+.prompt{text-align:center;font-size:20px;font-weight:800;color:#5e6d81;min-height:30px;margin-top:8px}
 .idlebox{height:64px;border:3px dashed #cdd6e2;border-radius:12px;display:flex;align-items:center;justify-content:center}
 .hand{font-size:32px;line-height:1;animation:bob 1s ease-in-out infinite}
 @keyframes bob{0%,100%{transform:translateY(4px)}50%{transform:translateY(-5px)}}
@@ -134,6 +137,7 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 <h1>Partial Sums</h1>
 <section class="card">
  <div class="stack stk" id="stack"></div>
+ <div class="prompt" id="prompt"></div>
  <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
  <div class="msg" id="msg" role="status" aria-live="polite"></div>
 </section>
@@ -168,6 +172,8 @@ function render(){
  const input=`<input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Answer" style="width:calc(var(--cw)*${n})">`;
  let h='';
  // header
+ const showF=inPartial&&active===null;
+ h+=`<div class="fh">${ph}<div class="sg"></div>`+colsL.map(k=>`<div class="c">${showF&&clickable(k)?'<span class="hand" aria-hidden="true">\uD83D\uDC47</span>':''}</div>`).join('')+`</div>`;
  h+=`<div class="hd">${ph}<div class="sg"></div>`+colsL.map(k=>{
   const vis=k<maxd;const dn=isDone(k);
   return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}" data-col="${k}" style="${vis?'':'visibility:hidden'}">${dn?'\u2713':(k<3?`<span class="pill">${NAMES[k]}</span>`:'')}</div>`;}).join('')+`</div>`;
@@ -184,8 +190,6 @@ function render(){
   const va=dig(A,active)*10**active,vb=dig(B,active)*10**active;
   h+=`<div class="row pr rowin"><div class="lw">${trm(va,active)} + ${trm(vb,active)} =</div><div class="sg"></div><div class="cells">${input}</div></div>`;
  }
- // nothing open yet: invite them to pick a column
- if(inPartial&&active===null)h+=`<div class="row pr"><div class="lw ph">&nbsp;</div><div class="sg"></div><div class="cells"><div class="idlebox" style="width:calc(var(--cw)*${n})"><span class="hand" aria-hidden="true">\uD83D\uDC46</span></div></div></div>`;
  // combining the partial sums, two at a time
  if(!inPartial){
   h+=`<div class="dv2"></div>`;
@@ -197,6 +201,7 @@ function render(){
   });
  }
  $('stack').innerHTML=h;
+ $('prompt').textContent=(inPartial&&active===null)?(partials.length===0?'Choose a column to start.':'Choose a column.'):'';
  const msg=$('msg');
  if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;}
  else if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
