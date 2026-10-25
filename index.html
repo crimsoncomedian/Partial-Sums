@@ -113,6 +113,12 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .lw .t{display:inline-block}
 .dv2{width:calc(var(--cw)*4 + 38px);border-top:2px solid #d5dce8;margin:8px 0 4px;align-self:center}
 .pin{text-align:right}
+.hd .c .pill{display:inline-block;padding:3px 10px;border:2px solid transparent;border-radius:999px;font-size:15px;line-height:1}
+.hd .c.clk .pill{border-color:currentColor;background:#fff;box-shadow:0 2px 0 currentColor}
+.hd .c.clk:hover .pill{background:#f1f4fa}
+.idlebox{height:64px;border:3px dashed #cdd6e2;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.hand{font-size:32px;line-height:1;animation:bob 1s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(4px)}50%{transform:translateY(-5px)}}
 .row.pr{flex-wrap:nowrap}
 .cc{color:#18253a}.cc.fin{color:#18845a}
 @media(max-width:560px){
@@ -164,25 +170,27 @@ function render(){
  // header
  h+=`<div class="hd">${ph}<div class="sg"></div>`+colsL.map(k=>{
   const vis=k<maxd;const dn=isDone(k);
-  return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}" data-col="${k}" style="${vis?'':'visibility:hidden'}">${dn?'\u2713':(k<3?NAMES[k]:'')}</div>`;}).join('')+`</div>`;
+  return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}" data-col="${k}" style="${vis?'':'visibility:hidden'}">${dn?'\u2713':(k<3?`<span class="pill">${NAMES[k]}</span>`:'')}</div>`;}).join('')+`</div>`;
  const numRow=(x,sign,line)=>`<div class="row">${ph}<div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}${isDone(k)?' dn':''}" data-col="${k}">${ch}</div>`;}).join('')+`</div></div>`;
  h+=numRow(A,'',false)+numRow(B,'+',true);
  const valCells=(val,cls,col)=>colsL.map(k=>{const str=String(val);const ch=k<str.length?str[str.length-1-k]:'';const faint=col!==null&&ch!==''&&k<col;return `<div class="c ${cls}${faint?' z':''}">${ch}</div>`;}).join('');
  // partial rows, in the order they were done
  partials.forEach((p,i)=>{
   const va=dig(A,p.col)*10**p.col,vb=dig(B,p.col)*10**p.col;
-  h+=`<div class="row pr${fresh===i?' rowin':''}"><div class="lw">(${trm(va,p.col)} + ${trm(vb,p.col)})</div><div class="sg"></div><div class="cells">${valCells(p.val,place(p.col),p.col)}</div></div>`;
+  h+=`<div class="row pr${fresh===i?' rowin':''}"><div class="lw">${trm(va,p.col)} + ${trm(vb,p.col)} =</div><div class="sg"></div><div class="cells">${valCells(p.val,place(p.col),p.col)}</div></div>`;
  });
  // open partial row
  if(inPartial&&active!==null){
   const va=dig(A,active)*10**active,vb=dig(B,active)*10**active;
-  h+=`<div class="row pr rowin"><div class="lw">(${trm(va,active)} + ${trm(vb,active)})</div><div class="sg"></div><div class="cells">${input}</div></div>`;
+  h+=`<div class="row pr rowin"><div class="lw">${trm(va,active)} + ${trm(vb,active)} =</div><div class="sg"></div><div class="cells">${input}</div></div>`;
  }
+ // nothing open yet: invite them to pick a column
+ if(inPartial&&active===null)h+=`<div class="row pr"><div class="lw ph">&nbsp;</div><div class="sg"></div><div class="cells"><div class="idlebox" style="width:calc(var(--cw)*${n})"><span class="hand" aria-hidden="true">\uD83D\uDC46</span></div></div></div>`;
  // combining the partial sums, two at a time
  if(!inPartial){
   h+=`<div class="dv2"></div>`;
   cs.forEach((s,j)=>{
-   const eq=`(${trm(s.left,s.lc)} + ${trm(s.right,s.rc)})`;
+   const eq=`${trm(s.left,s.lc)} + ${trm(s.right,s.rc)} =`;
    const last=j===cs.length-1;
    if(j<cd)h+=`<div class="row pr"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc'+(last?' fin':''),null)}</div></div>`;
    else if(j===cd)h+=`<div class="row pr rowin"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${input}</div></div>`;
