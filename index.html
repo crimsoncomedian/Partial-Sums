@@ -69,16 +69,34 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 [hidden]{display:none!important}
 .help b{color:#18253a}
 @media(max-width:560px){:root{--cw:52px}.row .eq,.hd .eq{display:none}.c{font-size:36px}.sg{width:28px}.pin{font-size:30px}}
+
+.strip{display:flex;align-items:center;gap:10px;margin-left:16px;min-width:230px}
+.grp{display:flex;flex-direction:column;align-items:center;gap:4px}
+.grp .num{font-size:18px;font-weight:800}
+.grp .bl{display:flex;flex-wrap:wrap;gap:3px;max-width:104px;justify-content:center}
+.grp.H .num{color:var(--h)}.grp.T .num{color:var(--t)}.grp.O .num{color:var(--o)}
+.fl{width:22px;height:22px;border:2px solid #2373cf;background:repeating-linear-gradient(0deg,transparent 0 4px,#8fb7e8 4px 5px),repeating-linear-gradient(90deg,#cfe3f9 0 4px,#8fb7e8 4px 5px);border-radius:3px}
+.rd{width:8px;height:30px;border:2px solid #16825a;background:repeating-linear-gradient(0deg,#b9e3d0 0 5px,#16825a 5px 6px);border-radius:2px}
+.cu{width:13px;height:13px;border:2px solid #b8690f;background:#f3c27d;border-radius:2px}
+.pl{font-size:28px;font-weight:800;color:#5e6d81}
+.eqrow{display:flex;align-items:center;justify-content:center;gap:12px;font-size:36px;font-weight:800;margin:10px 0;flex-wrap:wrap}
+.eqrow .tm{min-width:40px;text-align:center}
+.eqrow .op{color:#5e6d81}
+.eqrow input{width:150px;height:56px;font-size:34px;font-weight:800;text-align:center;border:3px solid #5144c6;border-radius:10px;background:#fff;font-family:inherit}
+.eqrow input:focus{outline:3px solid #b6aef5;outline-offset:1px}
+.eqrow .ans{color:#18845a}
+.pin{text-align:right}
+.rowin{animation:pop .45s ease-out}
+@media(max-width:560px){.row.act{flex-wrap:wrap;justify-content:center}.strip{flex-basis:100%;justify-content:center;margin:6px 0 4px}.eqrow{font-size:28px}.eqrow input{width:120px;font-size:28px}}
 </style>
 </head>
 <body><main class="app">
 <h1>Partial Sums</h1>
-<p class="sub">Add each place on its own. Then add the pieces together.</p>
 <section class="card">
  <div class="stack" id="stack"></div>
+ <div id="eqs"></div>
  <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
  <div class="msg" id="msg" role="status" aria-live="polite"></div>
- <div class="help" id="help"></div>
 </section>
 <button class="next" id="next" type="button">New problem &#8635;</button>
 </main>
@@ -86,53 +104,73 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 (()=>{
 const $=id=>document.getElementById(id);
 const PL=['O','T','H'],NAMES=['1s','10s','100s'];
+const COL={H:'var(--h)',T:'var(--t)',O:'var(--o)'};
 let A=347,B=286,steps=[],idx=0,maxd=3,total=633,fresh=-1;
 const dig=(x,k)=>Math.floor(x/10**k)%10;
 function setup(a,b){
  A=a;B=b;total=a+b;maxd=Math.max(String(a).length,String(b).length);steps=[];
- for(let c=maxd-1;c>=0;c--){const da=dig(a,c),db=dig(b,c);if(da===0&&db===0)continue;steps.push({k:'p',col:c,va:da*10**c,vb:db*10**c,want:(da+db)*10**c});}
- steps.push({k:'f',want:total,parts:steps.map(s=>s.want)});
+ const parts=[];
+ for(let c=0;c<maxd;c++){const da=dig(a,c),db=dig(b,c);if(da===0&&db===0)continue;
+  steps.push({k:'p',col:c,da,db,sum:da+db,want:da+db});parts.push({col:c,val:(da+db)*10**c});}
+ let run=parts[0].val;
+ for(let j=1;j<parts.length;j++){steps.push({k:'c',left:run,right:parts[j].val,rc:parts[j].col,want:run+parts[j].val});run+=parts[j].val;}
  idx=0;fresh=-1;$('msg').textContent='';$('msg').className='msg';render();
 }
+const blocks=(n,col)=>{const cls=col===2?'fl':col===1?'rd':'cu';return `<div class="bl">${`<span class="${cls}"></span>`.repeat(n)}</div>`;};
 function render(){
  const n=maxd+1,cur=idx<steps.length?steps[idx]:null,finished=cur===null;
+ const nP=steps.filter(s=>s.k==='p').length;
  const colsL=[];for(let k=n-1;k>=0;k--)colsL.push(k);
  const place=k=>PL[k]||'O';
- const cellsFor=(str,tint)=>colsL.map(k=>{const pos=k;const ch=str.length>pos?str[str.length-1-pos]:'';return `<div class="c ${tint||place(k)}${tint==='x'?'':''}">${ch}</div>`;}).join('');
  let h='';
- // header
- h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>`<div class="c ${k<3?place(k):'O'}" style="${k<maxd?'':'visibility:hidden'}">${k<3?NAMES[k]:''}</div>`).join('')+`<div class="eq" style="visibility:hidden">x</div></div>`;
- // numbers
+ h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>`<div class="c ${k<3?place(k):'O'}" style="${k<maxd?'':'visibility:hidden'}">${k<3?NAMES[k]:''}</div>`).join('')+`<div class="eq" style="visibility:hidden"></div></div>`;
  const actCol=cur&&cur.k==='p'?cur.col:-1;
- const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${k===actCol?' act':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;
+ const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${k===actCol?' act':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden"></div></div>`;
  h+=numRow(A,'',false)+numRow(B,'+',true);
- // partial rows
- const fmtRow=(val,col,isNew)=>{
-  const s=String(val);
-  return `<div class="row${isNew?' rowin':''}"><div class="sg"></div><div class="cells">`+colsL.map(k=>{
-   const ch=k<s.length?s[s.length-1-k]:'';
-   const faint=ch!==''&&k<col;
-   return `<div class="c ${place(col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;};
- const inputRow=(cur,signPlus)=>{
-  const w=cur.k==='p'?n:n;const eq=cur.k==='p'?(cur.vb===0?`${cur.va}`:cur.va===0?`${cur.vb}`:`${cur.va} + ${cur.vb}`):cur.parts.join(' + ');
-  return `<div class="row rowin"><div class="sg">${signPlus?'+':''}</div><div class="cells"><input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="${cur.k==='p'?'Partial sum':'Total'}" style="width:calc(var(--cw)*${n})"></div><div class="eq">${cur.k==='p'?eq:''}</div></div>`;};
- const donePartials=steps.slice(0,Math.min(idx,steps.length-1));
- donePartials.forEach((s,i)=>{h+=fmtRow(s.want,s.col,fresh===i);});
- if(cur&&cur.k==='p')h+=inputRow(cur,false);
- // final
- const allPartial=idx>=steps.length-1;
- if(allPartial){
-  const f=steps[steps.length-1];
-  // plus sign on the last partial row: handled visually by a separate row of the line
-  h+=`<div class="row"><div class="sg">+</div><div class="cells lineb" style="height:0;padding:0;min-width:calc(var(--cw)*${n})"></div><div class="eq" style="visibility:hidden">x</div></div>`;
-  if(cur&&cur.k==='f')h+=`<div class="row rowin"><div class="sg"></div><div class="cells"><input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Total" style="width:calc(var(--cw)*${n})"></div><div class="eq">${f.parts.join(' + ')}</div></div>`;
-  else if(finished)h+=`<div class="row rowin"><div class="sg"></div><div class="cells">`+colsL.map(k=>{const s=String(total);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c" style="color:#18845a">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden">x</div></div>`;
+ // done partial rows
+ const donePartials=steps.filter((s,i)=>s.k==='p'&&i<idx);
+ donePartials.forEach((s,i)=>{
+  const str=String(s.sum);
+  h+=`<div class="row${fresh===i?' rowin':''}"><div class="sg"></div><div class="cells">`+colsL.map(k=>{
+   const rel=k-s.col;let ch='',faint=false;
+   if(rel>=0&&rel<str.length)ch=str[str.length-1-rel];
+   else if(k<s.col){ch='0';faint=true;}
+   return `<div class="c ${place(s.col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div><div class="eq" style="visibility:hidden"></div></div>`;
+ });
+ // active partial row
+ if(cur&&cur.k==='p'){
+  const w=String(cur.sum).length>=2?2:2; // allow two digits
+  const cells=colsL.map(k=>`<div class="c ${place(cur.col)}${k<cur.col?' z':''}" style="${k===cur.col||k===cur.col+1?'':''}">${k<cur.col?'0':''}</div>`);
+  // input overlays the two cells at col+1 and col (right-aligned)
+  const left=colsL.indexOf(cur.col+1<n?cur.col+1:cur.col),span=cur.col+1<n?2:1;
+  const rowCells=colsL.map((k,i)=>{
+   if(k===cur.col+1&&cur.col+1<n)return `<input class="pin" id="inNum" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Partial sum" style="width:calc(var(--cw)*2);margin:0 0 0 0">`;
+   if(k===cur.col&&cur.col+1<n)return '';
+   if(k===cur.col)return `<input class="pin" id="inNum" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Partial sum" style="width:var(--cw)">`;
+   return `<div class="c ${place(cur.col)}${k<cur.col?' z':''}">${k<cur.col?'0':''}</div>`;}).join('');
+  const g=(d)=>d===0?'':`<div class="grp ${place(cur.col)}"><div class="num">${d}</div>${blocks(d,cur.col)}</div>`;
+  const gs=[g(cur.da),g(cur.db)].filter(Boolean).join('<div class="pl">+</div>');
+  h+=`<div class="row rowin act"><div class="sg"></div><div class="cells">${rowCells}</div><div class="strip">${gs}</div></div>`;
  }
  $('stack').innerHTML=h;
+ // equations (combine step by step)
+ let e='';
+ const comb=steps.filter(s=>s.k==='c');
+ if(idx>=nP&&comb.length){
+  comb.forEach((s,j)=>{
+   const si=steps.indexOf(s);
+   const lcol=j===0?null:null;
+   const lcls=j===0?'color:'+COL[place(steps.filter(x=>x.k==='p')[0].col)]:'';
+   const leftStyle=j===0?`color:${COL[place(steps.filter(x=>x.k==='p')[0].col)]}`:'';
+   const rightStyle=`color:${COL[place(s.rc)]}`;
+   if(si<idx)e+=`<div class="eqrow"><span class="tm" style="${leftStyle}">${s.left}</span><span class="op">+</span><span class="tm" style="${rightStyle}">${s.right}</span><span class="op">=</span><span class="tm ans">${s.want}</span></div>`;
+   else if(si===idx)e+=`<div class="eqrow rowin"><span class="tm" style="${leftStyle}">${s.left}</span><span class="op">+</span><span class="tm" style="${rightStyle}">${s.right}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div>`;
+  });
+ }
+ $('eqs').innerHTML=e;
  const msg=$('msg');
- if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;$('help').textContent='';}
- else{if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
-  $('help').innerHTML=cur.k==='p'?`Add the <b>${NAMES[cur.col]}</b> place: <b>${cur.vb===0?cur.va:cur.va===0?cur.vb:cur.va+' + '+cur.vb}</b>`:`Add the partial sums: <b>${cur.parts.join(' + ')}</b>`;}
+ if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;}
+ else if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
  $('ctl').hidden=finished;$('undo').disabled=idx===0;
  const inn=$('inNum');
  if(inn){inn.oninput=()=>{inn.value=inn.value.replace(/\D/g,'');if(inn.value.length>=String(cur.want).length)check();};inn.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check();}};inn.focus();}
@@ -142,18 +180,18 @@ function setMsg(t){$('msg').className='msg';$('msg').textContent=t;}
 function shake(el){el.classList.remove('shake');void el.offsetWidth;el.classList.add('shake');}
 function check(){
  const cur=steps[idx];if(!cur)return;const el=$('inNum');if(!el)return;const v=el.value.replace(/\D/g,'');if(v==='')return;
- if(+v===cur.want){if(cur.k==='p')fresh=idx;idx++;setMsg('');render();return;}
+ if(+v===cur.want){if(cur.k==='p')fresh=steps.slice(0,idx).filter(s=>s.k==='p').length;idx++;setMsg('');render();return;}
  el.value='';shake(el);
- if(cur.k==='p'&&+v===cur.want/10**cur.col&&cur.col>0){setMsg('Write the full value, with the zeros.');return;}
- setMsg(cur.k==='p'?`Not quite. ${cur.vb===0?cur.va:cur.va===0?cur.vb:cur.va+' + '+cur.vb} = ?`:`Not quite. ${cur.parts.join(' + ')} = ?`);
+ setMsg(cur.k==='p'?`Not quite. Count the blocks: ${cur.da} + ${cur.db} = ?`:`Not quite. ${cur.left} + ${cur.right} = ?`);
 }
 $('chk').onclick=check;
 $('undo').onclick=()=>{if(idx>0){idx--;setMsg('');render();}};
 function carries(a,b){for(let c=0;c<3;c++)if(dig(a,c)+dig(b,c)>=10)return true;return false;}
+function nPartials(a,b){let c=0;const m=Math.max(String(a).length,String(b).length);for(let i=0;i<m;i++)if(dig(a,i)||dig(b,i))c++;return c;}
 function newProblem(){
  const r=(lo,hi)=>lo+Math.floor(Math.random()*(hi-lo+1));
  let a,b;const want=Math.random()<.75;
- do{const la=Math.random()<.5?2:3,lb=Math.random()<.5?2:3;a=la===2?r(10,99):r(100,999);b=lb===2?r(10,99):r(100,999);}while(a===b||(want&&!carries(a,b)));
+ do{const la=Math.random()<.5?2:3,lb=Math.random()<.5?2:3;a=la===2?r(10,99):r(100,999);b=lb===2?r(10,99):r(100,999);}while(a===b||nPartials(a,b)<2||(want&&!carries(a,b)));
  setup(Math.max(a,b),Math.min(a,b));
 }
 $('next').onclick=newProblem;
