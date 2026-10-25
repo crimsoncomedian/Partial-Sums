@@ -106,12 +106,28 @@ h1{font-size:clamp(22px,4vw,30px);margin:0 0 6px;text-align:center}.sub{color:#5
 .pmini{font-size:15px;font-weight:700;color:#5e6d81}
 .rowin{animation:pop .45s ease-out}
 @media(max-width:560px){.bench{min-width:0;width:100%}}
+
+.app{max-width:760px}
+.lw{width:150px;margin-right:8px;text-align:right;font-size:22px;font-weight:700;white-space:nowrap;color:#5e6d81}
+.lw.ph{visibility:hidden}
+.lw .t{display:inline-block}
+.dv2{width:calc(var(--cw)*4 + 38px);border-top:2px solid #d5dce8;margin:8px 0 4px;align-self:center}
+.pin{text-align:right}
+.row.pr{flex-wrap:nowrap}
+.cc{color:#18253a}.cc.fin{color:#18845a}
+@media(max-width:560px){
+ .lw.ph{display:none}
+ .row.pr{flex-wrap:wrap;justify-content:center}
+ .row.pr .lw{flex-basis:100%;text-align:center;margin:6px 0 0;width:auto;font-size:20px}
+ .row.pr .sg{display:none}
+ .dv2{width:calc(var(--cw)*4 + 28px)}
+}
 </style>
 </head>
 <body><main class="app">
 <h1>Partial Sums</h1>
 <section class="card">
- <div class="board"><div class="stack stk" id="stack"></div><div class="bench" id="bench"></div></div>
+ <div class="stack stk" id="stack"></div>
  <div class="btns" id="ctl"><button class="chk" id="chk" type="button">Check</button><button class="chk alt" id="undo" type="button">Undo</button></div>
  <div class="msg" id="msg" role="status" aria-live="polite"></div>
 </section>
@@ -136,55 +152,48 @@ function combos(){
  for(let j=1;j<partials.length;j++){out.push({left:run,right:partials[j].val,lc:j===1?partials[0].col:null,rc:partials[j].col,want:run+partials[j].val});run+=partials[j].val;}
  return out;
 }
-const blocks=(n,col)=>{const cls=col===2?'fl':col===1?'rd':'cu';return `<div class="bl">${`<span class="${cls}"></span>`.repeat(n)}</div>`;};
 function render(){
  const n=maxd+1,inPartial=partials.length<need.length,cs=combos(),finished=!inPartial&&cd>=cs.length;
  const colsL=[];for(let k=n-1;k>=0;k--)colsL.push(k);
  const isDone=k=>partials.some(p=>p.col===k);
  const clickable=k=>inPartial&&need.includes(k)&&!isDone(k);
+ const ph='<div class="lw ph">&nbsp;</div>';
+ const trm=(v,col)=>`<span class="t" style="${col===null?'':'color:'+COL[place(col)]}">${v}</span>`;
+ const input=`<input class="pin" id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Answer" style="width:calc(var(--cw)*${n})">`;
  let h='';
- // finger hint row
- const showFinger=inPartial&&partials.length===0&&active===null;
- h+=`<div class="fh"><div class="sg"></div>`+colsL.map(k=>`<div class="c">${showFinger&&k===0?'<span class="hand" aria-hidden="true">\uD83D\uDC47</span>':''}</div>`).join('')+`</div>`;
  // header
- h+=`<div class="hd"><div class="sg"></div>`+colsL.map(k=>{
+ h+=`<div class="hd">${ph}<div class="sg"></div>`+colsL.map(k=>{
   const vis=k<maxd;const dn=isDone(k);
   return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}" data-col="${k}" style="${vis?'':'visibility:hidden'}">${dn?'\u2713':(k<3?NAMES[k]:'')}</div>`;}).join('')+`</div>`;
- const numRow=(x,sign,line)=>`<div class="row"><div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}${isDone(k)?' dn':''}" data-col="${k}">${ch}</div>`;}).join('')+`</div></div>`;
+ const numRow=(x,sign,line)=>`<div class="row">${ph}<div class="sg">${sign}</div><div class="cells${line?' lineb':''}">`+colsL.map(k=>{const s=String(x);const ch=k<s.length?s[s.length-1-k]:'';return `<div class="c ${place(k)}${clickable(k)?' clk':''}${active===k?' act':''}${isDone(k)?' dn':''}" data-col="${k}">${ch}</div>`;}).join('')+`</div></div>`;
  h+=numRow(A,'',false)+numRow(B,'+',true);
- // partial rows (in the order they were done)
+ const valCells=(val,cls,col)=>colsL.map(k=>{const str=String(val);const ch=k<str.length?str[str.length-1-k]:'';const faint=col!==null&&ch!==''&&k<col;return `<div class="c ${cls}${faint?' z':''}">${ch}</div>`;}).join('');
+ // partial rows, in the order they were done
  partials.forEach((p,i)=>{
-  const str=String(p.val);
-  h+=`<div class="row${fresh===i?' rowin':''}"><div class="sg"></div><div class="cells">`+colsL.map(k=>{
-   const ch=k<str.length?str[str.length-1-k]:'';const faint=ch!==''&&k<p.col;
-   return `<div class="c ${place(p.col)}${faint?' z':''}">${ch}</div>`;}).join('')+`</div></div>`;
+  const va=dig(A,p.col)*10**p.col,vb=dig(B,p.col)*10**p.col;
+  h+=`<div class="row pr${fresh===i?' rowin':''}"><div class="lw">(${trm(va,p.col)} + ${trm(vb,p.col)})</div><div class="sg"></div><div class="cells">${valCells(p.val,place(p.col),p.col)}</div></div>`;
  });
- $('stack').innerHTML=h;
- // workbench
- let b='';
- if(finished){b=`<div class="eqrow"><span class="tm ans">${total}</span></div>`;}
- else if(inPartial){
-  if(active===null)b=`<div class="idle" aria-hidden="true">\uD83D\uDC48</div>`;
-  else{
-   const va=dig(A,active)*10**active,vb=dig(B,active)*10**active,da=dig(A,active),db=dig(B,active);
-   const st=`color:${COL[place(active)]}`;
-   const g=d=>d===0?'':`<div class="grp ${place(active)}"><div class="num">${d}</div>${blocks(d,active)}</div>`;
-   const gs=[g(da),g(db)].filter(Boolean).join('<div class="pl">+</div>');
-   b=`<div class="eqrow rowin"><span class="tm" style="${st}">${va}</span><span class="op">+</span><span class="tm" style="${st}">${vb}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div><div class="strip" style="margin:0;min-width:0">${gs}</div>`;
-  }
- }else{
+ // open partial row
+ if(inPartial&&active!==null){
+  const va=dig(A,active)*10**active,vb=dig(B,active)*10**active;
+  h+=`<div class="row pr rowin"><div class="lw">(${trm(va,active)} + ${trm(vb,active)})</div><div class="sg"></div><div class="cells">${input}</div></div>`;
+ }
+ // combining the partial sums, two at a time
+ if(!inPartial){
+  h+=`<div class="dv2"></div>`;
   cs.forEach((s,j)=>{
-   const lst=s.lc!==null?`color:${COL[place(s.lc)]}`:'';const rst=`color:${COL[place(s.rc)]}`;
-   if(j<cd)b+=`<div class="eqrow"><span class="tm" style="${lst}">${s.left}</span><span class="op">+</span><span class="tm" style="${rst}">${s.right}</span><span class="op">=</span><span class="tm ans">${s.want}</span></div>`;
-   else if(j===cd)b+=`<div class="eqrow rowin"><span class="tm" style="${lst}">${s.left}</span><span class="op">+</span><span class="tm" style="${rst}">${s.right}</span><span class="op">=</span><input id="inNum" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="Sum"></div>`;
+   const eq=`(${trm(s.left,s.lc)} + ${trm(s.right,s.rc)})`;
+   const last=j===cs.length-1;
+   if(j<cd)h+=`<div class="row pr"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${valCells(s.want,'cc'+(last?' fin':''),null)}</div></div>`;
+   else if(j===cd)h+=`<div class="row pr rowin"><div class="lw">${eq}</div><div class="sg"></div><div class="cells">${input}</div></div>`;
   });
  }
- $('bench').innerHTML=b;$('bench').classList.toggle('on',!!b&&!(inPartial&&active===null)&&!finished||finished);
+ $('stack').innerHTML=h;
  const msg=$('msg');
  if(finished){msg.className='msg good';msg.textContent=`\u2713 Correct! ${A} + ${B} = ${total}. Great work!`;}
  else if(msg.classList.contains('good')){msg.className='msg';msg.textContent='';}
  $('ctl').hidden=finished;$('chk').hidden=!$('inNum');$('undo').disabled=partials.length===0&&active===null&&cd===0;
- if(!finished||true)document.querySelectorAll('[data-col].clk').forEach(el=>el.onclick=()=>{active=+el.dataset.col;setMsg('');render();});
+ document.querySelectorAll('[data-col].clk').forEach(el=>el.onclick=()=>{active=+el.dataset.col;setMsg('');render();});
  const inn=$('inNum');
  const want=inPartial?(active!==null?(dig(A,active)+dig(B,active))*10**active:0):(cs[cd]?cs[cd].want:0);
  if(inn){inn.oninput=()=>{inn.value=inn.value.replace(/\D/g,'');if(inn.value.length>=String(want).length)check();};inn.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();check();}};inn.focus();}
